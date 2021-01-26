@@ -79,38 +79,51 @@ local function DecrementTargetCount(guid, mod)
 end
 
 function f:UNIT_TARGET(event, unit)
+    print(event, unit)
     -- if not UnitIsFriend("player", srcUnit) then
-    -- if string.sub(unit, 1, 9) ~= "nameplate" then return end
-    local unitGUID = UnitGUID(unit)
-    if not unitGUID then return end
+    if string.sub(unit, 1, 9) ~= "nameplate" then return end
 
-    -- print(event, unit)
-    local enemyTable = enemies[unitGUID]
-    if enemyTable then
-        local oldTargetGUID = enemyTable[1]
+    local unitGUID = UnitGUID(unit)
+    -- if not unitGUID then return end
+
+
+    -- local enemyTable = enemies[unitGUID]
+    -- if enemyTable then
+
+        local oldTargetGUID = enemies[unitGUID]
         local unitTarget = unit.."target"
         local newTargetGUID = UnitGUID(unitTarget)
 
+        local color = oldTargetGUID == newTargetGUID and "ffff6666" or "ff66ff66"
+
+        print(string.format("|c%s UNIT_TARGET %s %s", color, unit, tostring(UnitExists(unitTarget))))
+
         if oldTargetGUID == newTargetGUID then return end
 
+
+        print('saving new target guid')
+        enemies[unitGUID] = newTargetGUID
+
         if oldTargetGUID then
+            print("old guid existed, firing callback")
             FireCallback("TARGETED_COUNT_CHANGED", oldTargetGUID)
             -- DecrementTargetCount(oldTargetGUID)
         end
 
         if newTargetGUID then
+            print("new guid found, firing callback")
             FireCallback("TARGETED_COUNT_CHANGED", newTargetGUID)
             -- IncrementTargetCount(newTargetGUID)
         end
 
         local now = GetTime()
 
-        enemyTable[1] = newTargetGUID
-        enemyTable[2] = now
+        -- enemyTable[1] = newTargetGUID
+        -- enemyTable[2] = now
     -- else
     --     -- this can be a normal unit like target focus arena1-3
     --     self:NAME_PLATE_UNIT_ADDED(event, unit)
-    end
+    -- end
 end
 
 
@@ -125,19 +138,21 @@ function f:NAME_PLATE_UNIT_ADDED(event, unit)
     local unitGUID = UnitGUID(unit)
 
     -- print(event, unit)
-    if not enemies[unitGUID] then
-        local now = GetTime()
-        enemies[unitGUID] = { nil, now }
-    end
+    -- if not enemies[unitGUID] then
+    --     local now = GetTime()
+    --     enemies[unitGUID] = { nil, now }
+    -- end
+    -- local enemyTable = enemies[unitGUID]
 
-    local enemyTable = enemies[unitGUID]
-
-    local oldTargetGUID = enemyTable[1]
+    local oldTargetGUID = enemies[unitGUID]
 
     local unitTarget = unit.."target"
+    -- print("new unit", unit, "target exists:", UnitExists(unitTarget))
     local newTargetGUID = UnitGUID(unitTarget)
 
-    if newTargetGUID and newTargetGUID ~= oldTargetGUID then
+    enemies[unitGUID] = newTargetGUID
+
+    if newTargetGUID ~= oldTargetGUID then
         FireCallback("TARGETED_COUNT_CHANGED", newTargetGUID)
         -- IncrementTargetCount(newTargetGUID)
     end
@@ -167,16 +182,12 @@ function f:NAME_PLATE_UNIT_REMOVED(event, unit)
     -- end
 
     local unitGUID = UnitGUID(unit)
-    local enemy = enemies[unitGUID]
-    -- print(event, unit)
-    if enemy then
-        local targetGUID = enemy[1]
-        if targetGUID then
-            FireCallback("TARGETED_COUNT_CHANGED", targetGUID)
-            -- DecrementTargetCount(targetGUID)
-        end
-        -- enemies[unitGUID] = nil
+    local oldTargetGUID = enemies[unitGUID]
+    if oldTargetGUID then
+        FireCallback("TARGETED_COUNT_CHANGED", oldTargetGUID)
+        -- DecrementTargetCount(targetGUID)
     end
+    enemies[unitGUID] = nil
 end
 
 -- local function PurgeExpired()
@@ -188,23 +199,21 @@ end
 
 function lib:GetUnitTargetedCount(unit)
     local targetGUID = UnitGUID(unit)
-    print(unit, targetGUID)
     return self:GetGUIDTargetedCount(targetGUID)
 end
 
 function lib:GetGUIDTargetedCount(targetGUID)
-    print(targetGUID)
     local count = 0
-    for unit in pairs(activeNameplates) do
-        local unitTarget = unit
-        local guid = UnitGUID(unitTarget)
-        local enemyTable = enemies[guid]
-        print(unit, guid, enemyTable)
-        if enemyTable then
-            if enemyTable[1] == targetGUID then
-                count = count + 1
-            end
+    for guid, enemyTargetGUID in pairs(enemies) do
+        -- local enemyTargetGUID = enemies[guid]
+        -- if enemyTable then
+            -- if enemyTable[1] == targetGUID then
+        if enemyTargetGUID == targetGUID then
+            count = count + 1
+        else
+            print("not player")
         end
+        -- end
     end
     return count
     -- if targetGUID and targets[targetGUID] then
@@ -214,9 +223,25 @@ function lib:GetGUIDTargetedCount(targetGUID)
     -- return 0
 end
 
+function f:COMBAT_LOG_EVENT_UNFILTERED()
+    local timestamp, eventType, hideCaster,
+    srcGUID, srcName, srcFlags, srcFlags2,
+    dstGUID, dstName, dstFlags, dstFlags2,
+    spellID, spellName, spellSchool, auraType, amount = CombatLogGetCurrentEventInfo()
+
+    if eventType == "UNIT_DIED" or eventType == "UNIT_DESTROYED" then
+        if enemies[dstGUID] then
+            local oldTargetGUID = enemies[dstGUID]
+            enemies[dstGUID] = nil
+            FireCallback("TARGETED_COUNT_CHANGED", oldTargetGUID)
+
+        end
+    end
+end
+
 function callbacks.OnUsed()
     f:RegisterEvent("UNIT_TARGET")
-
+    f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
     f:RegisterEvent("NAME_PLATE_UNIT_ADDED")
     f:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 end
