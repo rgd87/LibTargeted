@@ -4,7 +4,7 @@ Author: d87
 --]================]
 
 
-local MAJOR, MINOR = "LibTargeted", 1
+local MAJOR, MINOR = "LibTargeted", 2
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -128,6 +128,29 @@ function f:NAME_PLATE_UNIT_ADDED(event, unit)
     ScanUnits()
 end
 
+function f:PLAYER_FOCUS_CHANGED(event)
+    if UnitExists("focus") then
+        self:NAME_PLATE_UNIT_ADDED(event, "focus")
+    else
+        scanUnits["focus"] = nil
+    end
+end
+
+function f:PLAYER_TARGET_CHANGED(event)
+    if UnitExists("target") then
+        self:NAME_PLATE_UNIT_ADDED(event, "target")
+    else
+        scanUnits["target"] = nil
+    end
+end
+
+-- when unit suddently becomes an enemy, eg duel or mc
+function f:UNIT_FACTION(event, unit)
+    if unit:sub(1, 9) == "nameplate" then
+        return self:NAME_PLATE_UNIT_ADDED(event, unit)
+    end
+end
+
 
 function f:NAME_PLATE_UNIT_REMOVED(event, unit)
     scanUnits[unit] = nil
@@ -156,10 +179,41 @@ function f:COMBAT_LOG_EVENT_UNFILTERED()
     end
 end
 
+function f:PLAYER_ENTERING_WORLD()
+    local _, instanceType = GetInstanceInfo()
+    if instanceType == "arena" then
+        scanUnits["arena1"] = "arena1target"
+        scanUnits["arena2"] = "arena2target"
+        scanUnits["arena3"] = "arena3target"
+    else
+        scanUnits["arena1"] = nil
+        scanUnits["arena2"] = nil
+        scanUnits["arena3"] = nil
+    end
+
+    if instanceType == "scenario" or instanceType == "party" or instanceType == "raid" then
+        scanUnits["boss1"] = "boss1target"
+        scanUnits["boss2"] = "boss2target"
+        scanUnits["boss3"] = "boss3target"
+        scanUnits["boss4"] = "boss4target"
+        scanUnits["boss5"] = "boss5target"
+    else
+        scanUnits["boss1"] = nil
+        scanUnits["boss2"] = nil
+        scanUnits["boss3"] = nil
+        scanUnits["boss4"] = nil
+        scanUnits["boss5"] = nil
+    end
+end
+
 function callbacks.OnUsed()
     f:RegisterEvent("UNIT_TARGET")
     f:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+    f:RegisterEvent("PLAYER_ENTERING_WORLD")
     f:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+    f:RegisterEvent("UNIT_FACTION")
+    f:RegisterEvent("PLAYER_TARGET_CHANGED")
+    f:RegisterEvent("PLAYER_FOCUS_CHANGED")
     f:RegisterEvent("NAME_PLATE_UNIT_REMOVED")
 end
 
