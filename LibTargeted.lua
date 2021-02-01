@@ -19,18 +19,16 @@ local callbacks = lib.callbacks
 local wipe = table.wipe
 
 local scanUnits = {
-    ["target"] = true,
-    ["focus"] = true,
-    ["boss1"] = true,
-    ["boss2"] = true,
-    ["boss3"] = true,
-    ["boss4"] = true,
-    ["boss5"] = true,
-    ["arena1"] = true,
-    ["arena2"] = true,
-    ["arena3"] = true,
-    ["arena4"] = true,
-    ["arena5"] = true,
+    -- ["target"] = "targettarget",
+    -- ["focus"] = "focustarget",
+    -- ["boss1"] = "boss1target",
+    -- ["boss2"] = "boss2target",
+    -- ["boss3"] = "boss3target",
+    -- ["boss4"] = "boss4target",
+    -- ["boss5"] = "boss5target",
+    -- ["arena1"] = "arena1target",
+    -- ["arena2"] = "arena2target",
+    -- ["arena3"] = "arena3target",
 }
 
 local UnitGUID = UnitGUID
@@ -56,17 +54,18 @@ end
 local encountered = {}
 local function ScanUnitsIntoTable(tbl)
     wipe(encountered)
-    for unit in pairs(scanUnits) do
+    for unit, targetUnit in pairs(scanUnits) do
         local unitGUID = UnitGUID(unit)
         -- avoiding duplicate units
         if unitGUID and not encountered[unitGUID] then
             encountered[unitGUID] = true
 
-            local targetUnit = unit.."target"
-            local targetGUID = UnitGUID(targetUnit)
-            if targetGUID then
-                local cur = tbl[targetGUID] or 0
-                tbl[targetGUID] = cur + 1
+            if IsGroupUnit(targetUnit) then
+                local targetGUID = UnitGUID(targetUnit)
+                if targetGUID then
+                    local cur = tbl[targetGUID] or 0
+                    tbl[targetGUID] = cur + 1
+                end
             end
         end
     end
@@ -114,9 +113,17 @@ function f:UNIT_TARGET(event, unit)
     ScanUnits()
 end
 
+local function IsEnemy(unit)
+    local isAttackable = UnitCanAttack("player", unit)
+    local isFriendly = UnitReaction(unit, "player") >= 4
+    return isAttackable or not isFriendly
+end
+
 
 function f:NAME_PLATE_UNIT_ADDED(event, unit)
-    scanUnits[unit] = true
+    if not IsEnemy(unit) then return end
+
+    scanUnits[unit] = unit.."target"
 
     ScanUnits()
 end
