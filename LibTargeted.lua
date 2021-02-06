@@ -4,7 +4,7 @@ Author: d87
 --]================]
 
 
-local MAJOR, MINOR = "LibTargeted", 2
+local MAJOR, MINOR = "LibTargeted", 3
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -115,7 +115,8 @@ end
 
 local function IsEnemy(unit)
     local isAttackable = UnitCanAttack("player", unit)
-    local isFriendly = UnitReaction(unit, "player") >= 4
+    local reaction = UnitReaction(unit, "player")
+    local isFriendly = reaction and reaction >= 4
     return isAttackable or not isFriendly
 end
 
