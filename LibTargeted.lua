@@ -4,7 +4,7 @@ Author: d87
 --]================]
 
 
-local MAJOR, MINOR = "LibTargeted", 3
+local MAJOR, MINOR = "LibTargeted", 4
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -117,7 +117,15 @@ local function IsEnemy(unit)
     local isAttackable = UnitCanAttack("player", unit)
     local reaction = UnitReaction(unit, "player")
     local isFriendly = reaction and reaction >= 4
-    return isAttackable or not isFriendly
+
+    local _, instanceType = GetInstanceInfo()
+    local isInPVP = instanceType == "pvp" or instanceType == "arena"
+    local isEligible = true
+    if isInPVP then
+        isEligible = UnitIsPlayer(unit)
+    end
+
+    return isEligible and (isAttackable or not isFriendly)
 end
 
 
