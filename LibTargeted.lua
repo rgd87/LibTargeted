@@ -4,7 +4,7 @@ Author: d87
 --]================]
 
 
-local MAJOR, MINOR = "LibTargeted", 4
+local MAJOR, MINOR = "LibTargeted", 5
 local lib = LibStub:NewLibrary(MAJOR, MINOR)
 if not lib then return end
 
@@ -138,7 +138,7 @@ function f:NAME_PLATE_UNIT_ADDED(event, unit)
 end
 
 function f:PLAYER_FOCUS_CHANGED(event)
-    if UnitExists("focus") then
+    if UnitExists("focus") and IsEnemy("focus") then
         self:NAME_PLATE_UNIT_ADDED(event, "focus")
     else
         scanUnits["focus"] = nil
@@ -146,7 +146,7 @@ function f:PLAYER_FOCUS_CHANGED(event)
 end
 
 function f:PLAYER_TARGET_CHANGED(event)
-    if UnitExists("target") then
+    if UnitExists("target") and IsEnemy("target") then
         self:NAME_PLATE_UNIT_ADDED(event, "target")
     else
         scanUnits["target"] = nil
